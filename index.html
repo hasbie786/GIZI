@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Kalkulator Gizi</title>
+  <script src="https://cdn.jsdelivr.net/npm/react@18.2.0/umd/react.production.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/react-dom@18.2.0/umd/react-dom.production.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@babel/standalone@7.20.6/babel.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 min-h-screen flex items-center justify-center">
+  <div id="root"></div>
+  <script type="text/babel">
+    const { useState, useEffect, useRef } = React;
+
+    const App = () => {
+      const [userData, setUserData] = useState({
+        age: '',
+        gender: '',
+        weight: '',
+        height: '',
+        activity: ''
+      });
+      const [results, setResults] = useState(null);
+      const chartRef = useRef(null);
+      const chartInstanceRef = useRef(null);
+
+      const activityFactors = {
+        sedentary: 1.2,
+        light: 1.375,
+        moderate: 1.55,
+        active: 1.725,
+        veryActive: 1.9
+      };
+
+      const calculateBMR = () => {
+        const { age, gender, weight, height } = userData;
+        if (!age || !gender || !weight || !height) return null;
+
+        let bmr;
+        if (gender === 'male') {
+          bmr = 88.362 + (13.397 * weight) + (4.799 * height) - (5.677 * age);
+        } else {
+          bmr = 447.593 + (9.247 * weight) + (3.098 * height) - (4.330 * age);
+        }
+        return bmr;
+      };
+
+      const calculateMacros = (bmr, activityFactor) => {
+        const calories = bmr * activityFactor;
+        const carbs = (calories * 0.55) / 4; // 55% of calories, 4 kcal/g
+        const protein = (calories * 0.20) / 4; // 20% of calories, 4 kcal/g
+        const fat = (calories * 0.25) / 9; // 25% of calories, 9 kcal/g
+        return { calories: calories.toFixed(2), carbs: carbs.toFixed(2), protein: protein.toFixed(2), fat: fat.toFixed(2) };
+      };
+
+      const handleCalculate = () => {
+        const bmr = calculateBMR();
+        if (bmr && userData.activity) {
+          const macros = calculateMacros(bmr, activityFactors[userData.activity]);
+          setResults(macros);
+        } else {
+          alert('Harap isi semua kolom dengan benar.');
+        }
+      };
+
+      useEffect(() => {
+        if (results && chartRef.current) {
+          if (chartInstanceRef.current) {
+            chartInstanceRef.current.destroy();
+          }
+          chartInstanceRef.current = new Chart(chartRef.current, {
+            type: 'pie',
+            data: {
+              labels: ['Karbohidrat (g)', 'Protein (g)', 'Lemak (g)'],
+              datasets: [{
+                data: [results.carbs, results.protein, results.fat],
+                backgroundColor: ['#34D399', '#60A5FA', '#FBBF24'],
+                borderColor: '#fff',
+                borderWidth: 2
+              }]
+            },
+            options: {
+              responsive: true,
+              plugins: {
+                legend: { position: 'top' },
+                title: { display: true, text: 'Distribusi Makronutrien' }
+              }
+            }
+          });
+        }
+        return () => {
+          if (chartInstanceRef.current) {
+            chartInstanceRef.current.destroy();
+          }
+        };
+      }, [results]);
+
+      return (
+        <div className="max-w-lg mx-auto bg-white p-6 rounded-lg shadow-md">
+          <h1 className="text-2xl font-bold mb-6 text-center text-gray-800">Kalkulator Gizi</h1>
+          <div className="space-y-4">
+            <input
+              type="number"
+              placeholder="Usia (tahun)"
+              className="w-full p-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+              value={userData.age}
+              onChange={(e) => setUserData({ ...userData, age: e.target.value })}
+            />
+            <select
+              className="w-full p-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+              value={userData.gender}
+              onChange={(e) => setUserData({ ...userData, gender: e.target.value })}
+            >
+              <option value="">Pilih Jenis Kelamin</option>
+              <option value="male">Pria</option>
+              <option value="female">Wanita</option>
+            </select>
+            <input
+              type="number"
+              placeholder="Berat Badan (kg)"
+              className="w-full p-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+              value={userData.weight}
+              onChange={(e) => setUserData({ ...userData, weight: e.target.value })}
+            />
+            <input
+              type="number"
+              placeholder="Tinggi Badan (cm)"
+              className="w-full p-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+              value={userData.height}
+              onChange={(e) => setUserData({ ...userData, height: e.target.value })}
+            />
+            <select
+              className="w-full p-2 border rounded focus:outline-none focus:ring-2 focus:ring-blue-500"
+              value={userData.activity}
+              onChange={(e) => setUserData({ ...userData, activity: e.target.value })}
+            >
+              <option value="">Pilih Tingkat Aktivitas</option>
+              <option value="sedentary">Sedentari (minim aktivitas)</option>
+              <option value="light">Ringan (olahraga ringan 1-3 hari/minggu)</option>
+              <option value="moderate">Sedang (olahraga sedang 3-5 hari/minggu)</option>
+              <option value="active">Aktif (olahraga berat 6-7 hari/minggu)</option>
+              <option value="veryActive">Sangat Aktif (pekerjaan fisik atau latihan intens)</option>
+            </select>
+            <button
+              className="w-full bg-blue-500 text-white p-2 rounded hover:bg-blue-600 transition"
+              onClick={handleCalculate}
+            >
+              Hitung Kebutuhan Gizi
+            </button>
+          </div>
+
+          {results && (
+            <div className="mt-6 p-4 bg-gray-50 rounded-lg">
+              <h2 className="text-xl font-semibold mb-4">Hasil Perhitungan</h2>
+              <p><strong>Kalori Harian:</strong> {results.calories} kcal</p>
+              <p><strong>Karbohidrat:</strong> {results.carbs} g</p>
+              <p><strong>Protein:</strong> {results.protein} g</p>
+              <p><strong>Lemak:</strong> {results.fat} g</p>
+              <canvas ref={chartRef} className="mt-4"></canvas>
+            </div>
+          )}
+        </div>
+      );
+    };
+
+    ReactDOM.render(<App />, document.getElementById('root'));
+  </script>
+</body>
+</html>
